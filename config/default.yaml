@@ -1,5 +1,11 @@
 seed: 42
 
+Clearml:
+ use_clearml: True
+ clearml_task_id: ''
+ project_name: "perfect_smile"
+ run_name: "TANet-Public_v0DEBUG_dropout0_lr1e-6_detrPCloud"
+
 Trainer:
   epochs: 600
   gpus: 1
@@ -11,18 +17,18 @@ Trainer:
   fast_dev_run: False
   logger:
     wandb:
-      use: True
+      use: False
       project: "TANet"
     log_every_n_steps: 5
 
 LitDataModule:
   dataloader:
-    batch_size: 8
+    batch_size: 8 #8
     num_workers: 4
   dataset:
     teeth_num: 28
     sample_num: 512
-    csv_dir: "dataset_csv"
+    csv_dir: "F:/DataSlow/TeethAlignment/dataset_csv/"
     train:
       split: "train"
     val:
@@ -35,7 +41,7 @@ LitDataModule:
 LitModule:
   optimizer:
     NAME: "adam"
-    learning_rate: 0.00001
+    learning_rate: 0.000001 # 0.00001
     weight_decay: 0.0000001
     momentum: 0.9
   scheduler:
@@ -44,6 +50,8 @@ LitModule:
     warmup_start_lr: 0
     warmup_epochs: 0
     eta_min: 0
+
+
 
 criterion:
   mode: "l2"

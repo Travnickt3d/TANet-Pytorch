@@ -1,5 +1,9 @@
 import sys, os
-sys.path.append(os.getcwd())
+sys.path.append('E:\\BSP\\TANNet\\TANet-Pytorch')
+#sys.path.append(os.getcwd())
+
+# set os environment variable
+os.environ["FORCE_CUDA"] = "1"
 
 import argparse
 import pytorch_lightning as pl
@@ -9,6 +13,10 @@ from pytorch_lightning.loggers import WandbLogger
 from models import LitModule
 from data import LitDataModule
 from openpoints.utils import EasyConfig
+
+import warnings
+#warnings.filterwarnings("ignore", message="No audio backend is available.")
+
 
 def train(cfg_path: str):
     cfg = EasyConfig()
@@ -51,5 +59,9 @@ if __name__ == '__main__':
     parser.add_argument("-cfg", "--config_file", type=str, metavar="", help="configuration file", default="config/pointnet++.yaml")
 
     args = parser.parse_args()
+
+    # import os
+    # import sys
+    # sys.stderr = open(os.devnull, "w")  # silence stderr
 
     train(args.config_file)

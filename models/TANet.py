@@ -56,9 +56,13 @@ class TANet(nn.Module):
         jaw_embedding = jaw_embedding.unsqueeze(1).repeat(1, teeth_embedddings.shape[1]-2, 1)
         concated = torch.cat([Xi, jaw_embedding, teeth_embedddings[:, :-2, :]], dim=2)
 
+
+
         dof = [None] * concated.shape[1]
         for i in range (concated.shape[1]):
             dof[i] = self.pose_regressor(concated[:, i, :]).unsqueeze(1)
         dof = torch.cat(dof, dim=1)
+
+
 
         return dof, Xi

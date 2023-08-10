@@ -8,6 +8,10 @@ def to_origin_and_normalize(mesh: trimesh.base.Trimesh)->trimesh.base.Trimesh:
     mesh.vertices = mesh.vertices / m
     return mesh
 
+def to_origin(mesh: trimesh.base.Trimesh)->trimesh.base.Trimesh:
+    mesh.vertices = mesh.vertices-mesh.centroid
+    return mesh
+
 def global_rotation_matrix(mesh: trimesh.base.Trimesh, aug_num=50)->np.ndarray:
     return trimesh.transformations.random_rotation_matrix(num=aug_num)
 

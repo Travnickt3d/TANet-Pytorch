@@ -23,11 +23,18 @@ class MLPs(nn.Module):
                 tmp.append(nn.Linear(combs[0][0], combs[0][1]))
                 tmp.append(nn.ReLU() if combs[1] == "relu" else nn.Tanh())
                 tmp.append(nn.Dropout(combs[2]))
-        nn.init.zeros_(tmp[-1-2].weight.data)
-        nn.init.zeros_(tmp[-1-2].bias.data)
+        #nn.init.zeros_(tmp[-1-2].weight.data)
+        #nn.init.zeros_(tmp[-1-2].bias.data)
+
+        #nn.init.uniform_(tmp[-1-2].weight.data, -0.1, 0.1)
+        #nn.init.uniform_(tmp[-1-2].bias.data, -0.1, 0.1)
         self.mlps = nn.Sequential(*tmp)
 
     def forward(self, x: torch.Tensor):
+        print("regresor input max: ", x.max().item())
+        print("regresor input min: ", x.min().item())
+        print("regresor input mean: ", x.mean().item())
+
         x = self.mlps(x)
         return x
 

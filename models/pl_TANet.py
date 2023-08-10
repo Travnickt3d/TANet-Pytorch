@@ -11,6 +11,32 @@ from losses import ConditionalWeightingLoss
 from openpoints.utils import EasyConfig
 from openpoints.models.build import build_model_from_cfg
 
+
+# t3d------------------------------
+# debug
+from vedo import Points, show
+import trimesh
+import time
+
+from clearml import Task
+import datetime
+def get_timestamp():
+    """ Get now as timestamp in format 'YYYY_MMDD_HHMM'
+
+    :return: timestamp string.
+    :rtype: str
+    """
+
+    now = datetime.datetime.now()
+    year = '{:02d}'.format(now.year)
+    month = '{:02d}'.format(now.month)
+    day = '{:02d}'.format(now.day)
+    hour = '{:02d}'.format(now.hour)
+    minute = '{:02d}'.format(now.minute)
+    return '{}_{}{}_{}{}'.format(year, month, day, hour, minute)
+# t3d end ------------------------------
+
+
 class LitModule(pl.LightningModule):
     def __init__(
         self,
@@ -30,6 +56,21 @@ class LitModule(pl.LightningModule):
         self.tooth_assembler = Tooth_Assembler()
 
         self.loss_fn = ConditionalWeightingLoss(sigma=5, criterion_mode=cfg.criterion.mode)
+
+        # t3d------------------------------
+        self.use_clearml = self.cfg.Clearml.use_clearml
+        self.clearml_task_id = self.cfg.Clearml.clearml_task_id
+        self.project_name = self.cfg.Clearml.project_name
+        run_name = str(self.cfg.Clearml.run_name) + "_" + get_timestamp()
+
+        if self.use_clearml:
+            if self.clearml_task_id == '':
+                self.clearml_task = Task.init(project_name=self.project_name, task_name=run_name)
+                #self.clearml_task.connect(params_dictionary)
+            else:
+                self.clearml_task = Task.get_task(task_id=self.clearml_task_id)
+                self.clearml_task.mark_started()
+        # t3d end ------------------------------
 
     def forward(self, X: Dict[str, torch.Tensor]) -> torch.Tensor:
         dof = self.model(X)
@@ -70,5 +111,40 @@ class LitModule(pl.LightningModule):
         loss = self.loss_fn(assembled, batch["target_X_v"], pred2gt_matrices, batch["C"].shape[1], Xi, self.device)
 
         self.log(f"{step}_loss", loss)
+
+        # t3d------------------------------
+        # print sum of the values in dof
+        print(f"\n{step}: Loss: ", loss.item())
+        print(f"\n{step}: Pose regresor output sum: ", dofs.sum().item())
+        print(f"\n{step}: GT 6dof input to target sum: ", batch["6dof"].sum().item())
+
+        self.clearml_task.get_logger().report_scalar(title='loss', series=step + '_loss',
+                                                     iteration=int(self.global_step), value=loss)
+        self.clearml_task.get_logger().report_scalar(title='dofs', series=step + '_dofs_sum',
+                                                     iteration=int(self.global_step), value=dofs.sum().item())
+        self.clearml_task.get_logger().report_scalar(title='dofs', series=step + '_GT_dofs_sum',
+                                                     iteration=int(self.global_step), value=batch["6dof"].sum().item())
+
+        if step == "train":
+            points_color = "winter"
+        elif step == "val":
+            points_color = "gist_heat"
+        else:
+            points_color = "winter"
+
+        pointcloud_X = trimesh.PointCloud(batch["X"].detach().cpu().numpy()[0, :, :])
+        pointcloud_target_X = trimesh.PointCloud(batch["target_X"].detach().cpu().numpy()[0, :, :])
+        numpy_assembled = assembled.detach().cpu().clone().reshape(shape=batch["X"].shape).numpy()[0, :, :]
+        pointcloud_pred_X = trimesh.PointCloud(numpy_assembled)
+        points_vedo_X = Points(pointcloud_X.vertices, r=5)
+        points_vedo_target_X = Points(pointcloud_target_X.vertices, r=5)
+        points_vedo_pred_X = Points(pointcloud_pred_X.vertices, r=5)
+        points_vedo_pred_X.cmap(points_color, pointcloud_pred_X.vertices[:,1])
+        points_vedo_X.cmap(points_color, pointcloud_X.vertices[:,1])
+        points_vedo_target_X.cmap("summer", pointcloud_target_X.vertices[:,1])
+        scene_thing = show([points_vedo_X, points_vedo_pred_X, points_vedo_target_X], N=3, axes=1)
+        # sleep for 5 seconds
+        time.sleep(2)
+        scene_thing.close()
 
         return loss

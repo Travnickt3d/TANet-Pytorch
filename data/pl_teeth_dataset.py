@@ -18,24 +18,49 @@ class TrainDataAugmentation(nn.Module):
     def forward(self, X: Dict[str, torch.Tensor]) -> Dict[str, torch.Tensor]:
         teeth_num = X["C"].shape[0]
 
-        trans = Transform3d().compose(Translate(-X["C"]),
-                                    Rotate(euler_angles_to_matrix(torch.randint(-30, 30, (teeth_num, 3)), "XYZ")),
-                                    Translate(torch.randn(teeth_num, 3)),
-                                    Translate(X["C"]))
+        # trans = Transform3d().compose(Translate(-X["C"]), # move teeth to origin
+        #                               Rotate(euler_angles_to_matrix(torch.randint(-30, 30, (teeth_num, 3)), "XYZ")),  # randomly rotate teeth
+        #                               Translate(torch.randn(teeth_num, 3)), # randomly translate teeth
+        #                               Translate(X["C"])) # move teeth back to original position
+
+        # deterministic transformation for debug, just rotation
+        trans = Transform3d().compose(Translate(-X["C"]), # move teeth to origin
+                                      Rotate(euler_angles_to_matrix(torch.randint(10, 11, (teeth_num, 3)), "XYZ")),
+                                      # Translate(torch.randn(teeth_num, 3)), # randomly translate teeth
+                                      Translate(X["C"])) # move teeth back to original position
+
+        # identity transformation for debug
+        # trans = Transform3d().compose(Translate(-X["C"]), # move teeth to origin
+        #                                 Rotate(euler_angles_to_matrix(torch.zeros((teeth_num, 3)), "XYZ")),
+        #                                 # Translate(torch.randn(teeth_num, 3)), # randomly translate teeth
+        #                                 Translate(X["C"])) # move teeth back to original position
+
         X["X_v"] = trans.transform_points(X["X_v"])
+
         X["X"] = X["X_v"].clone().reshape(shape=X["X"].shape)
         X_matrices = trans.inverse().get_matrix()
 
-        trans = Transform3d().compose(Translate(-X["C"]),
-                                    Rotate(euler_angles_to_matrix(torch.randint(-30, 30, (teeth_num, 3)), "XYZ")),
-                                    Translate(torch.randn(teeth_num, 3)),
-                                    Translate(X["C"]))
-        X["target_X_v"] = trans.transform_points(X["target_X_v"])
-        X["target_X"] = X["target_X_v"].clone().reshape(shape=X["target_X"].shape)
-        target_X_matrices = trans.get_matrix()
+        # trans = Transform3d().compose(Translate(-X["C"]),
+        #                             Rotate(euler_angles_to_matrix(torch.randint(-30, 30, (teeth_num, 3)), "XYZ")),
+        #                             Translate(torch.randn(teeth_num, 3)),
+        #                             Translate(X["C"]))
+        # X["target_X_v"] = trans.transform_points(X["target_X_v"])
+        #
+        #
+        #
+        # X["target_X"] = X["target_X_v"].clone().reshape(shape=X["target_X"].shape)
+        # target_X_matrices = trans.get_matrix()
 
-        trans = Transform3d().compose(Transform3d(matrix=X_matrices),
-                                    Transform3d(matrix=target_X_matrices))
+        # transformation matrix from X to target_X
+        # trans = Transform3d().compose(Transform3d(matrix=X_matrices),
+        #                             Transform3d(matrix=target_X_matrices))
+        #
+        # final_trans_mat = trans.get_matrix()
+        # X["6dof"] = se3_log_map(final_trans_mat)
+
+        #X["6dof"] = se3_log_map(trans.inverse().get_matrix())
+
+        trans = Transform3d().compose(Transform3d(matrix=X_matrices))
 
         final_trans_mat = trans.get_matrix()
         X["6dof"] = se3_log_map(final_trans_mat)
@@ -50,10 +75,18 @@ class TestDataAugmentation(nn.Module):
     def forward(self, X: Dict[str, torch.Tensor]) -> Dict[str, torch.Tensor]:
         teeth_num = X["C"].shape[0]
 
-        trans = Transform3d().compose(Translate(-X["C"]),
-                                    Rotate(euler_angles_to_matrix(torch.randint(-30, 30, (teeth_num, 3)), "XYZ")),
-                                    Translate(torch.randn(teeth_num, 3)),
-                                    Translate(X["C"]))
+        # trans = Transform3d().compose(Translate(-X["C"]),
+        #                             Rotate(euler_angles_to_matrix(torch.randint(-30, 30, (teeth_num, 3)), "XYZ")),
+        #                             Translate(torch.randn(teeth_num, 3)),
+        #                             Translate(X["C"]))
+
+        # deterministic transformation for debug, just rotation
+        trans = Transform3d().compose(Translate(-X["C"]), # move teeth to origin
+                                      Rotate(euler_angles_to_matrix(torch.randint(10, 11, (teeth_num, 3)), "XYZ")),
+                                      # Translate(torch.randn(teeth_num, 3)), # randomly translate teeth
+                                      Translate(X["C"])) # move teeth back to original position
+
+
         X["X_v"] = trans.transform_points(X["X_v"])
         X["X"] = X["X_v"].clone().reshape(shape=X["X"].shape)
         X_matrices = trans.inverse().get_matrix()
@@ -62,6 +95,7 @@ class TestDataAugmentation(nn.Module):
 
         final_trans_mat = trans.get_matrix()
         X["6dof"] = se3_log_map(final_trans_mat)
+
 
         return X
 
@@ -81,7 +115,7 @@ class LitDataModule(pl.LightningDataModule):
 
         self.sample_num = cfg.dataset.sample_num
 
-        self.val_splite_ratio = cfg.dataset.val.split_ratio
+        self.val_split_ratio = cfg.dataset.val.split_ratio
         self.test_split_ratio = cfg.dataset.test.split_ratio
 
         if os.path.exists(os.path.join(self.dataset_csv_path, "trian_val.csv")):

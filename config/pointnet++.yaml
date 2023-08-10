@@ -64,7 +64,7 @@ model:
           [1024, 256],
           [256, 6]]
     activators: [relu, relu, tanh]
-    dropouts: [0.3, 0.3, 0.]
+    dropouts: [0., 0., 0.] #dropouts: [0.3, 0.3, 0.]
   feature_propagation_module:
     NAME: FPM
     K_iter: 3

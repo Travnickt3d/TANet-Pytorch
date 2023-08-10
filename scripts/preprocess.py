@@ -1,5 +1,6 @@
 import sys, os
-sys.path.append(os.getcwd())
+#sys.path.append(os.getcwd())
+sys.path.append('E:\\BSP\\TANNet\\TANet-Pytorch')
 
 import argparse
 from glob import glob
@@ -12,23 +13,69 @@ from tqdm.contrib import tzip
 import vedo
 import numpy as np
 
-from utils import rearrange, extract_teeth_without_gingiva, to_origin_and_normalize, global_rotation_matrix
+from utils import rearrange, extract_teeth_without_gingiva, to_origin_and_normalize, global_rotation_matrix, to_origin
 
 CSV_SAVE_PATH = "dataset_csv"
 
 def load_and_process(dir_path, out_path=None, num: int=50):
     upper_mesh_path = glob(dir_path+"上/*_arch_upper_aligned.stl")[0]
     lower_mesh_path = glob(dir_path+"下/*_arch_lower_aligned.stl")[0]
-    upper_label_path = glob(dir_path+"上/*.txt")[0]
-    lower_label_path = glob(dir_path+"下/*.txt")[0]
+
     upper_mesh = vedo.Mesh(upper_mesh_path)
     lower_mesh = vedo.Mesh(lower_mesh_path)
-    upper_mesh.celldata["Label"]=rearrange(np.loadtxt(upper_label_path))
-    lower_mesh.celldata["Label"]=rearrange(np.loadtxt(lower_label_path))
+
+    #upper_label_path = glob(dir_path+"上/*.txt")[0]
+    #lower_label_path = glob(dir_path+"下/*.txt")[0]
+    #upper_mesh.celldata["Label"]=rearrange(np.loadtxt(upper_label_path))
+    #lower_mesh.celldata["Label"]=rearrange(np.loadtxt(lower_label_path))
+
+    upper_label_path = glob(dir_path+"上/*.pkl")[0]
+    lower_label_path = glob(dir_path+"下/*.pkl")[0]
+    # load labels from pkl
+    import pickle
+    with open(upper_label_path, "rb") as f:
+        upper_label = np.array(pickle.load(f))
+    with open(lower_label_path, "rb") as f:
+        lower_label = np.array(pickle.load(f))
+
+    #print("Upper labels: ", np.unique(upper_label))
+    #for label in np.unique(upper_label):
+    #    print("Label: ", label, " count: ", np.sum(upper_label==label))
+    print("Lower labels: ", np.unique(lower_label))
+    for label in np.unique(lower_label):
+        print("Label: ", label, " count: ", np.sum(lower_label==label))
+
+
+    upper_mesh.celldata["Label"] = rearrange(upper_label)
+    lower_mesh.celldata["Label"] = rearrange(lower_label)
+    rearanged_lower_label = lower_mesh.celldata["Label"]
+
+
+    print("Rearanged lower labels: ", np.unique(rearanged_lower_label))
+    for label in np.unique(rearanged_lower_label):
+        print("Label: ", label, " count: ", np.sum(rearanged_lower_label==label))
+
     mesh = vedo.merge(upper_mesh, lower_mesh)
+
+    # save the mesh as stl
+    debug_save_path = os.path.join(*dir_path.split("/")[:-2], "debug")
+    if not os.path.exists(debug_save_path):
+        os.mkdir(debug_save_path)
+    debug_filepath = os.path.join(debug_save_path, dir_path.split("/")[-2]+"merge.stl")
+    vedo.write(mesh, debug_filepath)
+
     mesh = extract_teeth_without_gingiva(mesh)
+
+    debug_filepath = os.path.join(debug_save_path, dir_path.split("/")[-2] + "extract_teeth_without_gingiva.stl")
+    vedo.write(mesh, debug_filepath)
+
     label = mesh.celldata["Label"].astype(np.int64)
-    mesh = to_origin_and_normalize(mesh.to_trimesh())
+    #mesh = to_origin_and_normalize(mesh.to_trimesh())
+    mesh = to_origin(mesh.to_trimesh())
+
+    debug_filepath = os.path.join(debug_save_path, dir_path.split("/")[-2] + "to_origin_and_normalize.stl")
+    mesh.export(debug_filepath)
+
     transform_matrices = global_rotation_matrix(num)
     if out_path is None:
         out_path = os.path.join(*dir_path.split("/")[:-2], "augmented")
@@ -61,7 +108,14 @@ if __name__ == '__main__':
         )
         out_root = "augmented"
     else:
-        Parallel(n_jobs=cpu_count())(delayed(load_and_process)(*item) for _, item in enumerate(tqdm(tzip(DATA_ROOT, [args.out_root]*len(DATA_ROOT), [args.aug_num]*len(DATA_ROOT)))))
+        # in parallel
+        #Parallel(n_jobs=cpu_count())(delayed(load_and_process)(*item) for _, item in enumerate(tqdm(tzip(DATA_ROOT, [args.out_root]*len(DATA_ROOT), [args.aug_num]*len(DATA_ROOT)))))
+
+        # in serial
+        for item in tqdm(tzip(DATA_ROOT, [args.out_root]*len(DATA_ROOT), [args.aug_num]*len(DATA_ROOT))):
+            load_and_process(*item)
+
+
         out_root = args.out_root
 
     import pandas as pd

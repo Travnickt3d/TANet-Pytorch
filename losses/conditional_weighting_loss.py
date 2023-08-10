@@ -14,6 +14,10 @@ class ConditionalWeightingLoss(nn.Module):
         self.spatial_loss = GeometricSpatialRelationLoss(sigma=sigma, criterion_mode=self.criterion_mode)
 
     def forward(self, X_v, target_X_v, rig_trans_matrix, node_idx: int, Xi, device: torch.device):
+        # X_v are the predicted teeth from tooth assembler
+        # target_X_v are the ground truth teeth from batch["target_X_v"]
+        # rig_trans_matrix is the "pred2gt_matrices" from tooth assembler
+
         loss = torch.FloatTensor(torch.zeros((X_v.shape[0],))).to(device)
         for idx in range(X_v.shape[0]):
             loss_recon = self.recon_loss(X_v[idx], target_X_v[idx], rig_trans_matrix[idx], device)
